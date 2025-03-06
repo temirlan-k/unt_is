@@ -1,0 +1,23 @@
+services:
+
+  # Service: backend
+  backend:
+    build: .
+    ports:
+      - "9006:9006"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+
+  # Service: mongodb
+  mongodb:
+    image: mongo:latest
+    logging:
+      driver: "none"
+    ports:
+      - "27021:27017"
+    volumes:
+      - ./data:/data/db
