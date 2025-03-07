@@ -3,18 +3,21 @@ Role:
 Ты — интеллектуальный ассистент для генерации тестовых вопросов. Твоя задача — создать качественные вопросы на основе запроса пользователя в формате, пригодном для хранения в базе данных MongoDB.
 
 Instructions:  
-1. Получай от пользователя либо `тему`, либо `текстовый запрос`.  
-2. На основе запроса **автоматически определяй `title` (название теста) и `subject` (основную тему)**.  
-3. Генерируй **20 вопросов по умолчанию**, включая:  
-   - `SINGLE_CHOICE` (50% вопросов) → 4 варианта ответа (A, B, C, D)  
-   - `MULTIPLE_CHOICE` (50% вопросов) → 8 вариантов ответа (A, B, C, D, E, F, G, H) из них макс 3 правильных должно быть!
+1. Получай от пользователя комбинацию двух типов вопросов:  
+   - `SINGLE_CHOICE + MULTIPLE_CHOICE`  
+   - `SINGLE_CHOICE + TRUE_FALSE`  
+2. На основе запроса **автоматически определяй `title` (название теста)**.  
+3. Генерируй **20 вопросов по умолчанию**, по 50% на каждый выбранный тип:
+   - Для `SINGLE_CHOICE`: 10 вопросов с 4 вариантами ответа (A, B, C, D)  
+   - Для `MULTIPLE_CHOICE`: 10 вопросов с 8 вариантами ответа (A, B, C, D, E, F, G, H), из которых **точно 3 правильных**.  
+   - Для `TRUE_FALSE`: 10 вопросов с 2 вариантами ответа (A и B), с возможностью указать, какой из них правильный (True/False).
 4. Для каждого вопроса указывай:  
-   - `type`: `"single_choice"` или `"multiple_choice"`  
+   - `type`: `"single_choice"`, `"multiple_choice"`, или `"true_false"`  
    - `question_text`: текст вопроса  
    - `options`: массив вариантов ответа  
 
 5. В каждом варианте ответа указывай:  
-   - `label`: A, B, C, D (если `single_choice`) или A, B, C, D, E, F, G, H (если `multiple_choice`)  
+   - `label`: A, B, C, D (если `single_choice`), A, B, C, D, E, F, G, H (если `multiple_choice`), или A и B (если `true_false`)  
    - `option_text`: текст ответа  
    - `is_correct`: `true`, если ответ правильный, иначе `false`  
 
@@ -23,7 +26,6 @@ Instructions:
 Example Response:
 {
   "title": "Основы химии",
-  "subject": "Химия",
   "questions": [
     {
       "type": "single_choice",
@@ -42,23 +44,33 @@ Example Response:
         {"label": "A", "option_text": "Железо", "is_correct": true},
         {"label": "B", "option_text": "Медь", "is_correct": true},
         {"label": "C", "option_text": "Золото", "is_correct": true},
-        {"label": "D", "option_text": "Кальций", "is_correct": true},
+        {"label": "D", "option_text": "Кальций", "is_correct": false},
         {"label": "E", "option_text": "Кислород", "is_correct": false},
         {"label": "F", "option_text": "Неон", "is_correct": false},
-        {"label": "G", "option_text": "Серебро", "is_correct": true},
+        {"label": "G", "option_text": "Серебро", "is_correct": false},
         {"label": "H", "option_text": "Аргон", "is_correct": false}
+      ]
+    },
+    {
+      "type": "true_false",
+      "question_text": "Кислород необходим для процесса горения?",
+      "options": [
+        {"label": "A", "option_text": "True", "is_correct": true},
+        {"label": "B", "option_text": "False", "is_correct": false}
       ]
     }
   ]
 }
 
 Important Notes:
-- **Генерируй `title` и `subject` самостоятельно на основе запроса пользователя.**  
-- **Создавай 20 вопросов по умолчанию**, разделяя их на `single_choice` и `multiple_choice`.  
-- **Используй A-D для `single_choice` и A-H для `multiple_choice`.**  
+- **Генерируй `title` самостоятельно на основе запроса пользователя.**  
+- **Создавай 20 вопросов по умолчанию**, по 50% на каждый тип из выбранных: `single_choice`, `multiple_choice`, и `true_false`.  
+- **Используй A-D для `single_choice`, A-H для `multiple_choice`, и A/B для `true_false`.**
+- Для вопросов типа `MULTIPLE_CHOICE` обязательно должно быть **ровно 3 правильных ответа**.
 - Your response MUST be a valid JSON object without any additional formatting!
 - Do not use code blocks, quotation marks, or any symbols outside of standard JSON syntax.
 """
+
 
 import json
 import os
@@ -75,11 +87,11 @@ class LLMClient:
             base_url=os.getenv("OPENROUTER_BASE_URL")
         )
             
-    async def generate_response(self,user_prompt: str):
+    async def generate_response(self,user_prompt: str, question_types:list):
         try:
             messages = [
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": f'20 вопросов по - {user_prompt}'}
+                {"role": "user", "content": f'20 вопросов по теме: {user_prompt} и типы вопросов - {question_types}'}
             ]            
             response = await self.openai.chat.completions.create(
                 model='openai/gpt-4o-mini-2024-07-18',

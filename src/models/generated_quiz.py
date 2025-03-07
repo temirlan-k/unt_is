@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class QuestionType(str, Enum):
     SINGLE_CHOICE = "single_choice"
     MULTIPLE_CHOICE = "multiple_choice"
+    TRUE_FALSE = 'true_false'
 
 class QuestionOption(BaseModel):
     label: str  # A, B, C, D (single_choice) / A-H (multiple_choice)
@@ -22,7 +23,6 @@ class GeneratedQuestion(BaseModel):
 class GeneratedQuiz(Document):
     user_id:PydanticObjectId
     title: str  
-    subject: str 
     questions: List[GeneratedQuestion] 
 
     class Settings:

@@ -20,7 +20,7 @@ async def generate_quiz(
     quiz_generator_service: QuizGeneratorService = Depends(QuizGeneratorService),
     token: dict = Depends(get_current_user),
 ):
-    return await quiz_generator_service.generate_quiz(user_prompt.user_prompt, PydanticObjectId(token.get('sub')))
+    return await quiz_generator_service.generate_quiz(user_prompt.user_prompt,user_prompt.question_types, PydanticObjectId(token.get('sub')))
 
 @generated_quiz_router.get("/",)
 async def get_all_quizzes(service: QuizGeneratorService = Depends(QuizGeneratorService)):
@@ -45,13 +45,12 @@ async def start_quiz_attempt(
     user_id = PydanticObjectId(token.get("sub"))
     return await service.start_quiz_attempt( user_id,quiz_id)
 
-@generated_quiz_router.post("/{attempt_id}/submit", )
+@generated_quiz_router.post("/{attempt_id}/finish", )
 async def submit_quiz_attempt(
     attempt_id: PydanticObjectId,
-    answers: List[UserAnswer],
     service: QuizGeneratorService = Depends(QuizGeneratorService)
 ):
-    return await service.submit_quiz_attempt(attempt_id, answers)
+    return await service.submit_quiz_attempt(attempt_id,)
 
 @generated_quiz_router.get("/attempts/me",)
 async def get_user_attempts(

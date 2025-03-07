@@ -17,10 +17,10 @@ from bson import ObjectId
 
 class QuizGeneratorService:
 
-    async def generate_quiz(self, user_prompt: str, user_id:PydanticObjectId) -> GeneratedQuiz:
+    async def generate_quiz(self, user_prompt: str,question_types:List[str], user_id:PydanticObjectId) -> GeneratedQuiz:
         llm_client = LLMClient()
             
-        response = await llm_client.generate_response(user_prompt)
+        response = await llm_client.generate_response(user_prompt,question_types)
 
         quiz_data = json.loads(response)
 
@@ -36,7 +36,6 @@ class QuizGeneratorService:
         generated_quiz = GeneratedQuiz(
             user_id=user_id, 
             title=quiz_data["title"],
-            subject=quiz_data["subject"],
             questions=questions
         )
         await generated_quiz.insert()
@@ -77,7 +76,6 @@ class QuizGeneratorService:
             attempt_data["user_id"] = str(attempt.user_id)
             attempt_data["quiz_id"] = str(attempt.quiz_id)
             attempt_data["quiz_title"] = quiz.title
-            attempt_data["quiz_subject"] = quiz.subject
 
             # Добавляем полные данные о вопросах
             for answer in attempt_data["answers"]:
@@ -169,14 +167,14 @@ class QuizGeneratorService:
         total_correct = len(correct_options)
 
         score = 0
-        if question.type == "single_choice":
+        if question.type in ["single_choice", "true_false"]:  # Both types treated the same
             score = 1 if selected_correct == 1 else 0
         elif question.type == "multiple_choice":
-            if selected_options == correct_options:  # Полностью правильный ответ
+            if selected_options == correct_options:  # Fully correct answer
                 score = 2
-            elif selected_correct > 0 and selected_options.issubset(correct_options):  # Частично правильный без ошибок
+            elif selected_correct > 0 and selected_options.issubset(correct_options):  # Partially correct without errors
                 score = 1
-            else:  # Если есть хотя бы одна ошибка
+            else:  # At least one error
                 score = 0
 
         user_answer = UserAnswer(

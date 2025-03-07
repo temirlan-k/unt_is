@@ -16,7 +16,7 @@ db = None
 async def init_db():
     global client, db
     client = AsyncIOMotorClient(os.getenv("DB_URL"))
-    db = client.unt_cs
+    db = client.unt_is
     await init_beanie(
         database=db,
         document_models=[

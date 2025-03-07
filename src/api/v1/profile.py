@@ -39,3 +39,11 @@ async def get_user_rank(
 ):
     """Возвращает место текущего пользователя в лидерборде и его total_score"""
     return await profile_service.get_user_rank((token.get('sub')))
+
+
+@profile_router.get('/stats')
+async def get_quiz_stats(
+    token: dict = Depends(get_current_user),
+    profile_service: ProfileService = Depends(ProfileService),
+):
+    return await profile_service.get_quiz_stats(PydanticObjectId(token.get('sub')))
