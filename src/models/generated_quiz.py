@@ -24,9 +24,11 @@ class GeneratedQuiz(Document):
     user_id:PydanticObjectId
     title: str  
     questions: List[GeneratedQuestion] 
+    
 
     class Settings:
         collection = "generated_quizzes"
+
 
 class UserAnswer(BaseModel):
     question_id: PydanticObjectId

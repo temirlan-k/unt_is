@@ -2,11 +2,13 @@ from datetime import datetime
 import json
 from typing import List
 from beanie import PydanticObjectId
+from src.schemas.res.question import QuizListDTO
+from src.models.quiz_session import UserQuizAttempt
 from src.models.question import Question
 from src.models.user import User
 from src.models.mistake_bank import MistakeBankQuiz
 from src.schemas.req.generated_quiz import UserAnswerRequest
-from src.models.generated_quiz import GeneratedQuiz, GeneratedQuestion, QuestionOption, UserAnswer, UserGeneratedQuizAttempt
+from src.models.generated_quiz import GeneratedQuiz, GeneratedQuestion, QuestionOption, QuestionType, UserAnswer, UserGeneratedQuizAttempt
 from src.helpers.llm import LLMClient
 from fastapi import HTTPException
 
@@ -91,11 +93,18 @@ class QuizGeneratorService:
             response.append(attempt_data)
 
         return response
+    
 
 
     async def get_all_quizzes(self):
-        return await GeneratedQuiz.find_all().to_list()
-    
+        # Fetch all quizzes
+        quizzes = await GeneratedQuiz.find_all().to_list()
+        
+        # Convert to DTO that only includes the fields you want
+        return [QuizListDTO.model_validate(quiz) for quiz in quizzes]
+
+
+
     async def get_quizzes_by_user(self, user_id: PydanticObjectId):
         return await GeneratedQuiz.find(GeneratedQuiz.user_id == user_id).to_list()
     
@@ -203,3 +212,98 @@ class QuizGeneratorService:
 
         await attempt.save()
         return {"message": "Answer submitted", "score": score}
+    async def get_attempt_details(self, attempt_id: PydanticObjectId, user_id:PydanticObjectId):
+        """
+        Retrieves complete details of a quiz attempt including:
+        - The attempt information (score, timing)
+        - The quiz title
+        - All questions with their options
+        - The user's answers to each question
+        
+        Args:
+            attempt_id: The PydanticObjectId of the attempt to retrieve
+            
+        Returns:
+            A dictionary with complete attempt details or None if not found
+        """
+        # Fetch the attempt by ID
+        attempt = await UserGeneratedQuizAttempt.get(attempt_id)
+        if not attempt:
+            return None
+        
+        # Fetch the associated quiz
+        quiz = await GeneratedQuiz.get(attempt.quiz_id)
+        if not quiz:
+            return None
+        
+        # Create a map of question_id -> question for easier lookup
+        questions_map = {str(q.id): q for q in quiz.questions}
+        
+        # Create a map of question_id -> user_answer for easier lookup
+        answers_map = {str(a.question_id): a for a in attempt.answers}
+        
+        # Build the result structure with detailed information
+        questions_with_answers = []
+        for question in quiz.questions:
+            question_id = str(question.id)
+            user_answer = answers_map.get(question_id)
+            
+            # Get correct answers for this question
+            correct_options = [opt.label for opt in question.options if opt.is_correct]
+            
+            # Determine if the answer was correct
+            is_correct = False
+            if user_answer:
+                if question.type == QuestionType.SINGLE_CHOICE:
+                    is_correct = set(user_answer.selected_options) == set(correct_options)
+                elif question.type == QuestionType.MULTIPLE_CHOICE:
+                    is_correct = set(user_answer.selected_options) == set(correct_options)
+                elif question.type == QuestionType.TRUE_FALSE:
+                    is_correct = set(user_answer.selected_options) == set(correct_options)
+            
+            questions_with_answers.append({
+                "question_id": question_id,
+                "question_text": question.question_text,
+                "question_type": question.type,
+                "options": [
+                    {
+                        "label": opt.label,
+                        "text": opt.option_text,
+                        "is_correct": opt.is_correct
+                    } for opt in question.options
+                ],
+                "user_answer": {
+                    "selected_options": user_answer.selected_options if user_answer else [],
+                    "score": user_answer.score if user_answer else 0
+                },
+                "is_correct": is_correct
+            })
+        
+        # Calculate completion percentage
+        total_questions = len(quiz.questions)
+        answered_questions = len([q for q in questions_with_answers if q["user_answer"]["selected_options"]])
+        completion_percentage = (answered_questions / total_questions * 100) if total_questions > 0 else 0
+        
+        # Calculate time taken if the attempt is finished
+        time_taken_seconds = None
+        if attempt.finished_at:
+            time_taken_seconds = (attempt.finished_at - attempt.started_at).total_seconds()
+        
+        # Build the complete result
+        result = {
+            "attempt_id": str(attempt.id),
+            "user_id": str(attempt.user_id),
+            "quiz_id": str(attempt.quiz_id),
+            "quiz_title": quiz.title,
+            "score": attempt.score,
+            "max_possible_score": total_questions,  # Assuming 1 point per question
+            "score_percentage": (attempt.score / total_questions * 100) if total_questions > 0 else 0,
+            "completion_percentage": completion_percentage,
+            "started_at": attempt.started_at,
+            "finished_at": attempt.finished_at,
+            "time_taken_seconds": time_taken_seconds,
+            "is_completed": attempt.finished_at is not None,
+            "questions": questions_with_answers
+        }
+        
+        return result

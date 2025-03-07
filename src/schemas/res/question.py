@@ -1,4 +1,5 @@
 
+from typing import Optional
 from beanie import PydanticObjectId
 from pydantic import BaseModel
 
@@ -14,3 +15,12 @@ class QuestionResponse(BaseModel):
     subject: str
     question_text: str
     options: list[OptionResponse]
+
+
+class QuizListDTO(BaseModel):
+    id: Optional[PydanticObjectId] = None
+    user_id: PydanticObjectId
+    title: str
+
+    class Config:
+        from_attributes = True  
