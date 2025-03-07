@@ -84,7 +84,8 @@ class LLMClient:
         load_dotenv()
         self.openai = AsyncOpenAI(
             api_key=os.getenv("OPENROUTER_API_KEY"),
-            base_url=os.getenv("OPENROUTER_BASE_URL")
+            base_url=os.getenv("OPENROUTER_BASE_URL"),
+            timeout=120,
         )
             
     async def generate_response(self,user_prompt: str, question_types:list):
