@@ -10,3 +10,6 @@ class QuizGenerationRequest(BaseModel):
 class UserAnswerRequest(BaseModel):
     question_id: PydanticObjectId
     selected_options: List[str]  # Выбранные варианты (например, ["A", "C"])
+
+class BulkUserAnswerRequest(BaseModel):
+    answers: List[UserAnswerRequest]
