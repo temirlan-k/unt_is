@@ -213,26 +213,10 @@ class QuizGeneratorService:
         attempt.score += score
 
         await attempt.save()
-        return {
-                "message": "Answer submitted", 
-                "score": score,
-                "correct_options": list(correct_options),  
-                "selected_options": answer.selected_options 
-            }
+        return {"message": "Answer submitted", "score": score, "correct_options": list(correct_options),  "selected_options": answer.selected_options }
+    
+
     async def get_attempt_details(self, attempt_id: PydanticObjectId, user_id:PydanticObjectId):
-        """
-        Retrieves complete details of a quiz attempt including:
-        - The attempt information (score, timing)
-        - The quiz title
-        - All questions with their options
-        - The user's answers to each question
-        
-        Args:
-            attempt_id: The PydanticObjectId of the attempt to retrieve
-            
-        Returns:
-            A dictionary with complete attempt details or None if not found
-        """
         # Fetch the attempt by ID
         attempt = await UserGeneratedQuizAttempt.get(attempt_id)
         if not attempt:
@@ -249,6 +233,9 @@ class QuizGeneratorService:
         # Create a map of question_id -> user_answer for easier lookup
         answers_map = {str(a.question_id): a for a in attempt.answers}
         
+        # Calculate maximum possible score
+        max_score = sum(2 if q.type == QuestionType.MULTIPLE_CHOICE else 1 for q in quiz.questions)
+        
         # Build the result structure with detailed information
         questions_with_answers = []
         for question in quiz.questions:
@@ -261,11 +248,7 @@ class QuizGeneratorService:
             # Determine if the answer was correct
             is_correct = False
             if user_answer:
-                if question.type == QuestionType.SINGLE_CHOICE:
-                    is_correct = set(user_answer.selected_options) == set(correct_options)
-                elif question.type == QuestionType.MULTIPLE_CHOICE:
-                    is_correct = set(user_answer.selected_options) == set(correct_options)
-                elif question.type == QuestionType.TRUE_FALSE:
+                if question.type in {QuestionType.SINGLE_CHOICE, QuestionType.MULTIPLE_CHOICE, QuestionType.TRUE_FALSE}:
                     is_correct = set(user_answer.selected_options) == set(correct_options)
             
             questions_with_answers.append({
@@ -283,6 +266,7 @@ class QuizGeneratorService:
                     "selected_options": user_answer.selected_options if user_answer else [],
                     "score": user_answer.score if user_answer else 0
                 },
+                "correct_options": correct_options,
                 "is_correct": is_correct
             })
         
@@ -303,8 +287,9 @@ class QuizGeneratorService:
             "quiz_id": str(attempt.quiz_id),
             "quiz_title": quiz.title,
             "score": attempt.score,
-            "max_possible_score": total_questions,  # Assuming 1 point per question
-            "score_percentage": (attempt.score / total_questions * 100) if total_questions > 0 else 0,
+            "max_score": max_score,
+            "questions_count": total_questions,
+            "score_percentage": (attempt.score / max_score * 100) if max_score > 0 else 0,
             "completion_percentage": completion_percentage,
             "started_at": attempt.started_at,
             "finished_at": attempt.finished_at,
