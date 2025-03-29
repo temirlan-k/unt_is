@@ -103,6 +103,8 @@ class QuizGeneratorService:
         # Convert to DTO that only includes the fields you want
         return [QuizListDTO.model_validate(quiz) for quiz in quizzes]
 
+    async def get_questions_by_quiz_id(self, quiz_id:PydanticObjectId):
+        return await GeneratedQuiz.find_one(GeneratedQuiz.id == quiz_id)
 
 
     async def get_quizzes_by_user(self, user_id: PydanticObjectId):
