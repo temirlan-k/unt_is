@@ -211,7 +211,12 @@ class QuizGeneratorService:
         attempt.score += score
 
         await attempt.save()
-        return {"message": "Answer submitted", "score": score}
+        return {
+                "message": "Answer submitted", 
+                "score": score,
+                "correct_options": list(correct_options),  
+                "selected_options": answer.selected_options 
+            }
     async def get_attempt_details(self, attempt_id: PydanticObjectId, user_id:PydanticObjectId):
         """
         Retrieves complete details of a quiz attempt including:
