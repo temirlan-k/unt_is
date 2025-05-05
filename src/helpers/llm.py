@@ -64,6 +64,7 @@ Example Response:
 
 Important Notes:
 - **Генерируй `title` самостоятельно на основе запроса пользователя.**  
+- Генерируй вопросы на том же языке, на котором написан запрос пользователя
 - **Создавай 20 вопросов по умолчанию**, по 50% на каждый тип из выбранных: `single_choice`, `multiple_choice`, и `true_false`.  
 - **Используй A-D для `single_choice`, A-H для `multiple_choice`, и A/B для `true_false`.**
 - Для вопросов типа `MULTIPLE_CHOICE` обязательно должно быть **ровно 3 правильных ответа**.
@@ -92,7 +93,7 @@ class LLMClient:
         try:
             messages = [
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": f'20 вопросов по теме: {user_prompt} и типы вопросов - {question_types}'}
+                {"role": "user", "content": f'20 вопросов по теме: {user_prompt} и типы вопросов - {question_types}.Генерируй вопросы на том же языке, на котором написан запрос пользователя'}
             ]            
             response = await self.openai.chat.completions.create(
                 model='openai/gpt-4o-mini-2024-07-18',
