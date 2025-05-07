@@ -1,3 +1,4 @@
+import re
 from beanie import Link, PydanticObjectId
 from bson import ObjectId
 from fastapi import HTTPException
@@ -24,7 +25,8 @@ class ProfileService:
             "first_name": user.first_name,
             "last_name": user.last_name,
             "score":user.total_score,
-            "role":user.role
+            "role":user.role,
+            "avatar":user.avatar
         }
 
     async def update_profile(self, user_id: str, profile_data: UserProfileUpdateReq):
@@ -44,11 +46,23 @@ class ProfileService:
         await user.save()
         return user
 
-    async def get_leaderboard(self, skip: int = 0, limit: int = 10):
+    async def get_leaderboard(self, search: str, skip: int = 0, limit: int = 10):
         """Возвращает топ пользователей по total_score с поддержкой пагинации"""
-        users = await User.find().sort("-total_score").skip(skip).limit(limit).to_list()
-        total_users = await User.count()  # Общее количество пользователей
-        return {'users': users, "users_count": total_users}
+        query = {}
+
+        if search:
+            regex = {"$regex":re.escape(search), "$options":"i"}
+            query = {
+                "$or": [
+                    {"first_name": regex},
+                    {"last_name": regex},
+                    {"email": regex}
+                ]
+            }
+
+        users = await User.find(query).sort("-total_score").skip(skip).limit(limit).to_list()
+        total_users = await User.find(query).count()
+        return {'users': users, "users_count": total_users} 
 
     async def get_user_rank(self, user_id: str):
         """Возвращает место текущего пользователя в лидерборде и его total_score"""

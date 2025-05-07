@@ -9,3 +9,4 @@ pydantic[email]
 openai==1.61.1
 python-dotenv
 langdetect
+python-multipart

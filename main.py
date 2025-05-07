@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from src.api.v1 import api_router
 from src.core.database import init_db
@@ -22,6 +23,12 @@ def make_app():
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Mount the uploads directory
+    uploads_dir = Path("uploads")
+    uploads_dir.mkdir(exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
     app.include_router(
         api_router,
     )
